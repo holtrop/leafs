@@ -1,5 +1,7 @@
 #!/usr/bin/env ruby
 
+require "erb"
+
 # Yet Another Way to Parse Arguments is an argument-parsing library for Ruby.
 #
 # Yawpa does not try to provide a fancy DSL.
@@ -222,8 +224,29 @@ end
 # LEAFS namespacing module.
 module Leafs
 
-  # leafs version
+  # leafs version.
   VERSION = "0.1.0"
+
+  # Generated code template.
+  TEMPLATE = <<EOF
+module <%= module_name %>
+
+struct <%= struct_name %>
+{
+<% asset_files.each do |path, contents| %>
+    static immutable ubyte[] <%= translate_path(path) %> = [
+<%   contents.bytes.each_slice(8) do |slice| %>
+        <%= slice.map {|v| sprintf("0x%02X,", v)}.join(" ") %>
+<%   end %>
+    ];
+<% end %>
+    static immutable ubyte[][string] assets = [
+<% asset_files.each do |path, contents| %>
+        "<%= path %>": <%= translate_path(path) %>,
+<% end %>
+    ];
+}
+EOF
 
   # Command-line usage.
   USAGE = <<EOF
@@ -244,6 +267,7 @@ EOF
     # Application main entry point.
     def main(argv)
       options = {
+        output: {short: "o", nargs: 1},
         version: {},
         help: {short: "h"},
       }
@@ -265,6 +289,44 @@ EOF
         $stderr.puts "Error: no paths specified"
         return 1
       end
+      output_file_name =
+        if opts[:output]
+          begin
+            opts[:output]
+          rescue StandardError => e
+            $stderr.puts "Error: #{e.message}"
+            return 1
+          end
+        end
+      result = generate(output_file_name, paths)
+      if output_file_name
+        File.binwrite(output_file_name, result)
+      else
+        $stdout.write(result)
+      end
+      0
+    end
+
+    private
+
+    def generate(output_file_name, paths)
+      if output_file_name
+        module_name = File.basename(output_file_name).sub(%r{\..*}, "")
+      else
+        module_name = "leafs"
+      end
+      struct_name = module_name.split(".").last.capitalize
+      asset_files = paths.reduce({}) do |result, path|
+        contents = File.binread(path)
+        result[path] = contents
+        result
+      end
+      erb = ERB.new(TEMPLATE, trim_mode: "<>")
+      erb.result(binding.clone)
+    end
+
+    def translate_path(path)
+      "_" + path.gsub(%r{[^a-zA-Z0-9_]}, "_")
     end
 
   end
