@@ -341,6 +341,14 @@ EOF
 
     private
 
+    # Generate code from the template for the asset paths given.
+    #
+    # @param output_file_name [String]
+    #   Path to output file.
+    # @param paths [Array<String>]
+    #   File/directory paths to include in generated asset file system.
+    #
+    # @return [void]
     def generate(output_file_name, paths)
       if output_file_name
         module_name = File.basename(output_file_name).sub(%r{\..*}, "")
