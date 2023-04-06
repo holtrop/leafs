@@ -4,14 +4,21 @@ require "open3"
 RUN_DIR = "spec/run"
 
 describe "leafs" do
-  before(:each) do
-    FileUtils.rm_rf(RUN_DIR)
-    FileUtils.mkdir_p(RUN_DIR)
+  before(:all) do
+    $owd = Dir.pwd
   end
 
-#  after(:each) do
-#    FileUtils.rm_rf(RUN_DIR)
-#  end
+  before(:each) do
+    Dir.chdir $owd
+    FileUtils.rm_rf(RUN_DIR)
+    FileUtils.mkdir_p(RUN_DIR)
+    Dir.chdir RUN_DIR
+  end
+
+  after(:each) do
+    Dir.chdir $owd
+    FileUtils.rm_rf(RUN_DIR)
+  end
 
   def run(command)
     stdout, stderr, status = Open3.capture3(*command)
@@ -22,7 +29,7 @@ describe "leafs" do
   end
 
   def write_test(contents)
-    File.binwrite("#{RUN_DIR}/test.d", <<EOF)
+    File.binwrite("test.d", <<EOF)
 import leafs;
 import std.stdio;
 
@@ -51,10 +58,11 @@ EOF
     writeln("Checksum = ", checksum);
     assert(Leafs.get("foo") is null);
 EOF
-    run(%W[./leafs -o #{RUN_DIR}/leafs.d leafs])
-    run(%W[gdc -funittest -o #{RUN_DIR}/test #{RUN_DIR}/test.d #{RUN_DIR}/leafs.d])
-    stdout, stderr, _ = run(%W[#{RUN_DIR}/test])
-    leafs_contents = File.binread("leafs")
+    FileUtils.cp("#{$owd}/leafs", ".")
+    run(%W[#{$owd}/leafs -o leafs.d leafs])
+    run(%W[gdc -funittest -o test test.d leafs.d])
+    stdout, stderr, _ = run(%W[./test])
+    leafs_contents = File.binread("#{$owd}/leafs")
     checksum = leafs_contents.bytes.reduce(:+) & 0xFF
     raise unless stdout =~ /Length = (\d+).*Checksum = (\d+)/m
     test_length, test_checksum = $1.to_i, $2.to_i
