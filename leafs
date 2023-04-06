@@ -229,22 +229,54 @@ module Leafs
 
   # Generated code template.
   TEMPLATE = <<EOF
-module <%= module_name %>
+module <%= module_name %>;
 
 struct <%= struct_name %>
 {
+    private static struct AssetFile
+    {
+        string name;
+        immutable(ubyte) * ptr;
+        size_t length;
+    }
+
 <% asset_files.each do |path, contents| %>
-    static immutable ubyte[] <%= translate_path(path) %> = [
+    private static immutable(ubyte)[<%= contents.length %>] <%= path_identifier(path) %> = [
 <%   contents.bytes.each_slice(8) do |slice| %>
         <%= slice.map {|v| sprintf("0x%02X,", v)}.join(" ") %>
 <%   end %>
     ];
+
 <% end %>
-    static immutable ubyte[][string] assets = [
+    private static immutable AssetFile[<%= asset_files.length %>] assets = [
 <% asset_files.each do |path, contents| %>
-        "<%= path %>": <%= translate_path(path) %>,
+        AssetFile(<%= path.inspect %>,
+            <%= path_identifier(path) %>.ptr,
+            <%= path_identifier(path) %>.length),
 <% end %>
     ];
+
+    private static immutable(ubyte)[][string] assets_by_file_name;
+
+    private static bool hash_initialized;
+
+    private static void check_hash()
+    {
+        if (!hash_initialized)
+        {
+            foreach (asset_file; assets)
+            {
+                assets_by_file_name[asset_file.name] = asset_file.ptr[0..asset_file.length];
+            }
+            hash_initialized = true;
+        }
+    }
+
+    public static immutable(ubyte)[] get(string file_name)
+    {
+        check_hash();
+        return assets_by_file_name.get(file_name, null);
+    }
 }
 EOF
 
@@ -325,7 +357,14 @@ EOF
       erb.result(binding.clone)
     end
 
-    def translate_path(path)
+    # Build an identifier corresponding to the given file system path.
+    #
+    # @param path [String]
+    #   File system path.
+    #
+    # @return [String]
+    #   Identifier for the path.
+    def path_identifier(path)
       "_" + path.gsub(%r{[^a-zA-Z0-9_]}, "_")
     end
 
