@@ -69,4 +69,25 @@ EOF
     expect(test_length).to eq leafs_contents.length
     expect(test_checksum).to eq checksum
   end
+
+  it "recurses directories" do
+    write_test(<<EOF)
+    auto file = cast(char[])Leafs.get("f.txt");
+    assert(file == "abc");
+    file = cast(char[])Leafs.get("d1/f1.txt");
+    assert(file == "1");
+    file = cast(char[])Leafs.get("d1/d2/f2.txt");
+    assert(file == "12");
+    file = cast(char[])Leafs.get("d1/d2/d3/f3.txt");
+    assert(file == "123");
+EOF
+    FileUtils.mkdir_p("d1/d2/d3")
+    File.binwrite("f.txt", "abc")
+    File.binwrite("d1/f1.txt", "1")
+    File.binwrite("d1/d2/f2.txt", "12")
+    File.binwrite("d1/d2/d3/f3.txt", "123")
+    run(%W[#{$owd}/leafs -o leafs.d d1 f.txt])
+    run(%W[gdc -funittest -o test test.d leafs.d])
+    run(%W[./test])
+  end
 end

@@ -348,13 +348,43 @@ EOF
         module_name = "leafs"
       end
       struct_name = module_name.split(".").last.capitalize
-      asset_files = paths.reduce({}) do |result, path|
+      asset_files = build_file_paths(paths).reduce({}) do |result, path|
         contents = File.binread(path)
         result[path] = contents
         result
       end
       erb = ERB.new(TEMPLATE, trim_mode: "<>")
       erb.result(binding.clone)
+    end
+
+    # Build file paths from user-given paths (which may include directories).
+    #
+    # @param paths [Array<String>]
+    #   User-given paths.
+    #
+    # @return [Array<String>]
+    #   File paths.
+    def build_file_paths(paths)
+      paths.map do |path|
+        if Dir.exist?(path)
+          recurse_dir(path)
+        else
+          path
+        end
+      end.flatten
+    end
+
+    # Get paths to all files under a directory.
+    #
+    # @param path [String]
+    #   Directory path.
+    #
+    # @return [Array<String>]
+    #   Paths to files under directory.
+    def recurse_dir(path)
+      entries = Dir.entries(path) - %w[. ..]
+      child_paths = entries.map {|e| "#{path}/#{e}"}
+      build_file_paths(child_paths)
     end
 
     # Build an identifier corresponding to the given file system path.
