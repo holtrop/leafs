@@ -1,12 +1,15 @@
 # LEAFS
 
-LEAFS is an Easy Asset File System.
+LEAFS is an Easy Asset File System generator.
 
 LEAFS consists of a redistributable command-line script which generates source
 code that:
 
 * contains the contents of a set of input file(s)
 * provides an API to read these file contents
+
+LEAFS is designed to embed small asset files into a binary so that the binary
+does not need to load them from the file system.
 
 Currently LEAFS generates D source code.
 
