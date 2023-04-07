@@ -90,4 +90,23 @@ EOF
     run(%W[gdc -funittest -o test test.d leafs.d])
     run(%W[./test])
   end
+
+  it "allows stripping prefixes from asset paths" do
+    write_test(<<EOF)
+    auto file = cast(char[])Leafs.get("f.txt");
+    assert(file == "abc");
+    file = cast(char[])Leafs.get("f1.txt");
+    assert(file == "1");
+    file = cast(char[])Leafs.get("f2.txt");
+    assert(file == "12");
+EOF
+    FileUtils.mkdir_p("d1")
+    FileUtils.mkdir_p("assets")
+    File.binwrite("f.txt", "abc")
+    File.binwrite("d1/f1.txt", "1")
+    File.binwrite("assets/f2.txt", "12")
+    run(%W[#{$owd}/leafs -o leafs.d -s d1 --strip assets/ d1 assets f.txt])
+    run(%W[gdc -funittest -o test test.d leafs.d])
+    run(%W[./test])
+  end
 end

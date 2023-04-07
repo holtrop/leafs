@@ -287,8 +287,9 @@ Usage: #{$0} [options] <paths>
 LEAFS is an Easy Asset File System
 
 Options:
-  --version     Show the version and exit
-  --help, -h    Show the usage and exit
+  --version                 Show the version and exit
+  --help, -h                Show the usage and exit
+  --strip=<S>, -s <S>       Strip path prefix S from asset paths
 
 All <paths> specified will be recursively selected to add to the generated
 asset file system.
@@ -301,6 +302,7 @@ EOF
       options = {
         output: {short: "o", nargs: 1},
         version: {},
+        strip: {short: "s", nargs: 1, multi: true},
         help: {short: "h"},
       }
       begin
@@ -330,7 +332,7 @@ EOF
             return 1
           end
         end
-      result = generate(output_file_name, paths)
+      result = generate(output_file_name, paths, opts[:strip] || [])
       if output_file_name
         File.binwrite(output_file_name, result)
       else
@@ -347,9 +349,11 @@ EOF
     #   Path to output file.
     # @param paths [Array<String>]
     #   File/directory paths to include in generated asset file system.
+    # @param strip [Array<String>]
+    #   Prefix(es) to strip from asset paths.
     #
     # @return [void]
-    def generate(output_file_name, paths)
+    def generate(output_file_name, paths, strip)
       if output_file_name
         module_name = File.basename(output_file_name).sub(%r{\..*}, "")
       else
@@ -358,7 +362,7 @@ EOF
       struct_name = module_name.split(".").last.capitalize
       asset_files = build_file_paths(paths).reduce({}) do |result, path|
         contents = File.binread(path)
-        result[path] = contents
+        result[strip_path(path, strip)] = contents
         result
       end
       erb = ERB.new(TEMPLATE, trim_mode: "<>")
@@ -393,6 +397,25 @@ EOF
       entries = Dir.entries(path) - %w[. ..]
       child_paths = entries.map {|e| "#{path}/#{e}"}
       build_file_paths(child_paths)
+    end
+
+    # Remove any strip prefixes from a path.
+    #
+    # @param path [String]
+    #   Path to strip.
+    # @param strip [Array<String>]
+    #   Prefixes to strip.
+    #
+    # @return [String]
+    #   Stripped path.
+    def strip_path(path, strip)
+      strip.each do |strip_prefix|
+        new_path = path.sub(%r{^#{strip_prefix}/?}, "")
+        if new_path != path
+          return new_path
+        end
+      end
+      path
     end
 
     # Build an identifier corresponding to the given file system path.
