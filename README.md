@@ -8,6 +8,8 @@ code that:
 * contains the contents of a set of input file(s)
 * provides an API to read these file contents
 
+Currently LEAFS generates D source code.
+
 # Installation
 
 LEAFS does not require any installation.
